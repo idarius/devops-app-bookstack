@@ -10,3 +10,5 @@ spec:
           env:
             - name: APP_URL
               value: "https://bookstackdev.rncp.idarius.net"
+            - name: TRUSTED_PROXIES
+              value: "*"
