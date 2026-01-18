@@ -49,6 +49,7 @@ spec:
                 secretKeyRef:
                   name: bookstack-secrets
                   key: ADMIN_EMAIL
+                  
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -79,6 +80,9 @@ spec:
                   name: bookstack-secrets
                   key: DB_PASSWORD
 
+            - name: TRUSTED_PROXIES
+              value: "*"
+              
           volumeMounts:
             - name: config
               mountPath: /config
