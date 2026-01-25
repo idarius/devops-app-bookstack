@@ -1,4 +1,4 @@
-name: Promote to prod (ACR)
+name: Promote to prod (branch prod)
 
 on:
   workflow_dispatch:
@@ -6,9 +6,12 @@ on:
       image_tag:
         description: "Tag à promouvoir (ex: sha-<commit>)"
         required: true
+      prod_branch:
+        description: "Branche cible pour prod"
+        required: false
+        default: "prod"
 
 permissions:
-  id-token: write
   contents: write
 
 jobs:
@@ -16,15 +19,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate tag format
+        run: |
+          set -euo pipefail
+          case "${{ inputs.image_tag }}" in
+            sha-*) echo "OK";;
+            *) echo "image_tag must start with sha- (ex: sha-<commit>)"; exit 1;;
+          esac
 
       - name: Install kustomize
         run: |
@@ -43,11 +50,16 @@ jobs:
           cd k8s/overlays/prod
           kustomize edit set image bookstack="${IMAGE}:${{ inputs.image_tag }}"
 
-      - name: Commit & push (GitOps)
+      - name: Commit changes
         run: |
-          set -e
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add k8s/overlays/prod/kustomization.yaml
           git commit -m "chore(prod): promote ${{ inputs.image_tag }}" || exit 0
-          git push
+
+      - name: Push to prod branch
+        run: |
+          set -euo pipefail
+          PROD_BRANCH="${{ inputs.prod_branch }}"
+          git push origin HEAD:"$PROD_BRANCH"
