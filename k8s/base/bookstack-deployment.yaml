@@ -44,9 +44,9 @@ spec:
               if [ "$rc" -eq 2 ]; then
                 echo "Admin already exists, skipping (exit 2).";
                 exit 0;
-              fi
+              fi;
               exit "$rc";
-              
+
       containers:
         - name: bookstack
           image: lscr.io/linuxserver/bookstack:latest
