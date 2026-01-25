@@ -111,28 +111,35 @@ spec:
                     set -e
 
                     LOCK="/config/.admin_bootstrap_done"
-
-                    # Si déjà fait, ne pas rejouer
                     if [ -f "$LOCK" ]; then
                       echo "[postStart] admin bootstrap already done, skipping"
                       exit 0
                     fi
 
-                    echo "[postStart] waiting for DB socket..."
+                    echo "[postStart] waiting for DB..."
                     until nc -z mariadb 3306; do sleep 2; done
 
                     echo "[postStart] waiting for artisan..."
-                    until php /app/www/artisan --version >/dev/null 2>&1; do
-                      sleep 3
+                    until php /app/www/artisan --version >/dev/null 2>&1; do sleep 3; done
+
+                    echo "[postStart] waiting for HTTP..."
+                    for i in $(seq 1 60); do
+                      if curl -fsS "http://127.0.0.1:80/login" >/dev/null 2>&1; then
+                        echo "[postStart] HTTP ok"
+                        break
+                      fi
+                      echo "[postStart] HTTP not ready ($i/60)..."
+                      sleep 5
                     done
 
-                    echo "[postStart] trying to ensure admin user (retry)..."
+                    echo "[postStart] ensuring admin user (retry with timeout)..."
                     for i in $(seq 1 60); do
-                      php /app/www/artisan bookstack:create-admin --initial \
+                      # timeout pour éviter un blocage infini
+                      timeout 20s php /app/www/artisan bookstack:create-admin --initial \
                         --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}"
                       rc=$?
 
-                      # 0 = updated/created, 2 = skip (déjà OK)
+                      # 0 = updated/created, 2 = skip => OK
                       if [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; then
                         echo "[postStart] create-admin success (rc=$rc), writing lock"
                         date > "$LOCK"
