@@ -109,8 +109,18 @@ spec:
                   - -lc
                   - |
                     (
-                      echo "[postStart] waiting for app to be ready...";
-                      # Laravel OK quand artisan répond (et que storage/cache est OK)
+                      set -e
+
+                      LOCK="/config/.admin_bootstrap_done"
+                      if [ -f "$LOCK" ]; then
+                        echo "[postStart] admin bootstrap already done, skipping";
+                        exit 0
+                      fi
+
+                      echo "[postStart] waiting for DB...";
+                      until nc -z mariadb 3306; do sleep 2; done
+
+                      echo "[postStart] waiting for artisan...";
                       until php /app/www/artisan --version >/dev/null 2>&1; do
                         sleep 3
                       done
@@ -121,7 +131,14 @@ spec:
                       rc=$?
 
                       # exit 2 = skip => OK
-                      [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]
+                      if [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; then
+                        echo "[postStart] writing lock";
+                        date > "$LOCK"
+                        exit 0
+                      fi
+
+                      echo "[postStart] create-admin failed with rc=$rc"
+                      exit $rc
                     ) >/proc/1/fd/1 2>&1 &
                     
       volumes:
