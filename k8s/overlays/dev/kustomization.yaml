@@ -9,3 +9,9 @@ resources:
 
 patchesStrategicMerge:
   - bookstack-url.patch.yaml
+
+# workflow remplacera par ACR_LOGIN_SERVER + sha-<commit>
+images:
+  - name: bookstack
+    newName: bookstack
+    newTag: dev

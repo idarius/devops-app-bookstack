@@ -24,7 +24,8 @@ spec:
 
       containers:
         - name: bookstack
-          image: lscr.io/linuxserver/bookstack:latest
+          image: bookstack
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           env:

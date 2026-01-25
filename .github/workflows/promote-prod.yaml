@@ -1,23 +1,19 @@
-name: Build & Deploy (dev -> ACR)
+name: Promote to prod (ACR)
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "app/**"
-      - "k8s/**"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag à promouvoir (ex: sha-<commit>)"
+        required: true
 
 permissions:
   id-token: write
   contents: write
 
 jobs:
-  build-push-and-update-dev:
-    if: github.actor != 'github-actions[bot]'
+  promote:
     runs-on: ubuntu-latest
-
-    env:
-      BOOKSTACK_VERSION: "25.12.2"
 
     steps:
       - name: Checkout
@@ -30,26 +26,6 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: ACR login
-        run: |
-          az acr login --name "${{ vars.ACR_NAME }}"
-
-      - name: Build & push image
-        run: |
-          set -euo pipefail
-          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack"
-          TAG="sha-${GITHUB_SHA}"
-          echo "Pushing ${IMAGE}:${TAG}"
-
-          docker build \
-            -f app/Dockerfile \
-            -t "${IMAGE}:${TAG}" \
-            --build-arg BUILD_SHA="${TAG}" \
-            --build-arg BOOKSTACK_VERSION="${BOOKSTACK_VERSION}" \
-            app
-
-          docker push "${IMAGE}:${TAG}"
-
       - name: Install kustomize
         run: |
           set -e
@@ -60,19 +36,18 @@ jobs:
           sudo mv /tmp/kustomize /usr/local/bin/kustomize
           kustomize version
 
-      - name: Update dev overlay to new image tag
+      - name: Update prod overlay to selected tag
         run: |
           set -euo pipefail
           IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack"
-          TAG="sha-${GITHUB_SHA}"
-          cd k8s/overlays/dev
-          kustomize edit set image bookstack="${IMAGE}:${TAG}"
+          cd k8s/overlays/prod
+          kustomize edit set image bookstack="${IMAGE}:${{ inputs.image_tag }}"
 
       - name: Commit & push (GitOps)
         run: |
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/overlays/dev/kustomization.yaml
-          git commit -m "chore(dev): deploy sha-${GITHUB_SHA}" || exit 0
+          git add k8s/overlays/prod/kustomization.yaml
+          git commit -m "chore(prod): promote ${{ inputs.image_tag }}" || exit 0
           git push
