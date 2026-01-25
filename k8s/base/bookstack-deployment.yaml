@@ -99,30 +99,33 @@ spec:
               port: 80
             initialDelaySeconds: 60
             periodSeconds: 10
+
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - sh
+                  - -lc
+                  - |
+                    (
+                      echo "[postStart] waiting for app to be ready...";
+                      # Laravel OK quand artisan répond (et que storage/cache est OK)
+                      until php /app/www/artisan --version >/dev/null 2>&1; do
+                        sleep 3
+                      done
+
+                      echo "[postStart] ensuring admin user...";
+                      php /app/www/artisan bookstack:create-admin --initial \
+                        --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}"
+                      rc=$?
+
+                      # exit 2 = skip => OK
+                      [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]
+                    ) >/proc/1/fd/1 2>&1 &
+                    
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: bookstack-config
 
-lifecycle:
-  postStart:
-    exec:
-      command:
-        - sh
-        - -lc
-        - |
-          (
-            echo "[postStart] waiting for app to be ready...";
-            # Laravel OK quand artisan répond (et que storage/cache est OK)
-            until php /app/www/artisan --version >/dev/null 2>&1; do
-              sleep 3
-            done
 
-            echo "[postStart] ensuring admin user...";
-            php /app/www/artisan bookstack:create-admin --initial \
-              --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}"
-            rc=$?
-
-            # exit 2 = skip => OK
-            [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]
-          ) >/proc/1/fd/1 2>&1 &
