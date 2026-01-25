@@ -21,6 +21,32 @@ spec:
               echo "Waiting for MariaDB...";
               until nc -z mariadb 3306; do sleep 2; done;
               echo "MariaDB is up.";
+        - name: create-admin
+          image: lscr.io/linuxserver/bookstack:latest
+          command: ["sh", "-lc"]
+          env:
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: ADMIN_EMAIL
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookstack-secrets
+                  key: ADMIN_PASSWORD
+          args:
+            - >
+              echo "Ensuring BookStack admin user...";
+              php /app/www/artisan bookstack:create-admin --initial
+              --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}";
+              rc=$?;
+              if [ "$rc" -eq 2 ]; then
+                echo "Admin already exists, skipping (exit 2).";
+                exit 0;
+              fi
+              exit "$rc";
+              
       containers:
         - name: bookstack
           image: lscr.io/linuxserver/bookstack:latest
