@@ -108,38 +108,43 @@ spec:
                   - sh
                   - -lc
                   - |
-                    (
-                      set -e
+                    set -e
 
-                      LOCK="/config/.admin_bootstrap_done"
-                      if [ -f "$LOCK" ]; then
-                        echo "[postStart] admin bootstrap already done, skipping";
-                        exit 0
-                      fi
+                    LOCK="/config/.admin_bootstrap_done"
 
-                      echo "[postStart] waiting for DB...";
-                      until nc -z mariadb 3306; do sleep 2; done
+                    # Si déjà fait, ne pas rejouer
+                    if [ -f "$LOCK" ]; then
+                      echo "[postStart] admin bootstrap already done, skipping"
+                      exit 0
+                    fi
 
-                      echo "[postStart] waiting for artisan...";
-                      until php /app/www/artisan --version >/dev/null 2>&1; do
-                        sleep 3
-                      done
+                    echo "[postStart] waiting for DB socket..."
+                    until nc -z mariadb 3306; do sleep 2; done
 
-                      echo "[postStart] ensuring admin user...";
+                    echo "[postStart] waiting for artisan..."
+                    until php /app/www/artisan --version >/dev/null 2>&1; do
+                      sleep 3
+                    done
+
+                    echo "[postStart] trying to ensure admin user (retry)..."
+                    for i in $(seq 1 60); do
                       php /app/www/artisan bookstack:create-admin --initial \
                         --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}"
                       rc=$?
 
-                      # exit 2 = skip => OK
+                      # 0 = updated/created, 2 = skip (déjà OK)
                       if [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]; then
-                        echo "[postStart] writing lock";
+                        echo "[postStart] create-admin success (rc=$rc), writing lock"
                         date > "$LOCK"
                         exit 0
                       fi
 
-                      echo "[postStart] create-admin failed with rc=$rc"
-                      exit $rc
-                    ) >/proc/1/fd/1 2>&1 &
+                      echo "[postStart] create-admin not ready (rc=$rc), retry $i/60..."
+                      sleep 5
+                    done
+
+                    echo "[postStart] ERROR: create-admin never succeeded after retries"
+                    exit 1
                     
       volumes:
         - name: config
