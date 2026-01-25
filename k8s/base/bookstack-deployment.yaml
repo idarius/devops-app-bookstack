@@ -39,13 +39,7 @@ spec:
             - >
               echo "Ensuring BookStack admin user...";
               php /app/www/artisan bookstack:create-admin --initial
-              --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}";
-              rc=$?;
-              if [ "$rc" -eq 2 ]; then
-                echo "Admin already exists, skipping (exit 2).";
-                exit 0;
-              fi;
-              exit "$rc";
+              --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}" || [ "$?" -eq 2 ];
 
       containers:
         - name: bookstack
