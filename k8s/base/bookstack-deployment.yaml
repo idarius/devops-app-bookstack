@@ -21,25 +21,6 @@ spec:
               echo "Waiting for MariaDB...";
               until nc -z mariadb 3306; do sleep 2; done;
               echo "MariaDB is up.";
-        - name: create-admin
-          image: lscr.io/linuxserver/bookstack:latest
-          command: ["sh", "-lc"]
-          env:
-            - name: ADMIN_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  name: bookstack-secrets
-                  key: ADMIN_EMAIL
-            - name: ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: bookstack-secrets
-                  key: ADMIN_PASSWORD
-          args:
-            - >
-              echo "Ensuring BookStack admin user...";
-              php /app/www/artisan bookstack:create-admin --initial
-              --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}" || [ "$?" -eq 2 ];
 
       containers:
         - name: bookstack
@@ -122,3 +103,26 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: bookstack-config
+
+lifecycle:
+  postStart:
+    exec:
+      command:
+        - sh
+        - -lc
+        - |
+          (
+            echo "[postStart] waiting for app to be ready...";
+            # Laravel OK quand artisan répond (et que storage/cache est OK)
+            until php /app/www/artisan --version >/dev/null 2>&1; do
+              sleep 3
+            done
+
+            echo "[postStart] ensuring admin user...";
+            php /app/www/artisan bookstack:create-admin --initial \
+              --email="${ADMIN_EMAIL}" --name="Admin" --password="${ADMIN_PASSWORD}"
+            rc=$?
+
+            # exit 2 = skip => OK
+            [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]
+          ) >/proc/1/fd/1 2>&1 &
