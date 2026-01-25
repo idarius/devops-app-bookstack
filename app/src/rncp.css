@@ -1,0 +1,25 @@
+/* RNCP demo branding: remplace le texte "BookStack" du header */
+.logo-text {
+  font-size: 0 !important; /* cache le texte original */
+}
+
+.logo-text::after {
+  content: "RNCP";
+  font-size: 1.8rem;
+  line-height: 1.4;
+  color: #fff;
+  font-weight: 400;
+}
+
+/* Optionnel: badge DEV */
+.logo-text::before {
+  content: "DEV";
+  font-size: 12px;
+  margin-right: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #ff8c00;
+  color: #000;
+  font-weight: 700;
+  vertical-align: middle;
+}
