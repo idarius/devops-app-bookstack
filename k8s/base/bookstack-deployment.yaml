@@ -91,17 +91,27 @@ spec:
                   key: DB_PASSWORD
 
             - name: TRUSTED_PROXIES
-              value: "*"
+              value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1"
               
           volumeMounts:
             - name: config
               mountPath: /config
+
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+
           readinessProbe:
             httpGet:
               path: /
               port: 80
             initialDelaySeconds: 20
             periodSeconds: 5
+
           livenessProbe:
             httpGet:
               path: /

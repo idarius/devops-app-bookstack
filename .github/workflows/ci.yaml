@@ -10,6 +10,10 @@ permissions:
   id-token: write
   contents: write
 
+concurrency:
+  group: build-deploy-dev-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-push-and-update-dev:
     if: github.actor != 'github-actions[bot]'
