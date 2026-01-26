@@ -6,6 +6,8 @@ namespace: bookstack-prod
 resources:
 - ../../base
 - ingress.yaml
+- resourcequota.yaml
+- networkpolicy.yaml
 
 patchesStrategicMerge:
 - bookstack-url.patch.yaml
