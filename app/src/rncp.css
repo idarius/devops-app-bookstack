@@ -13,7 +13,7 @@
 
 /* Optionnel: badge DEV */
 .logo-text::before {
-  content: "NC";
+  content: "NjC";
   font-size: 20px;
   margin-right: 10px;
   padding: 2px 6px;
