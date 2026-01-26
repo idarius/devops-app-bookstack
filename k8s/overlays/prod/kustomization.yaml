@@ -4,14 +4,14 @@ kind: Kustomization
 namespace: bookstack-prod
 
 resources:
-  - ../../base
-  - ingress.yaml
+- ../../base
+- ingress.yaml
 
 patchesStrategicMerge:
-  - bookstack-url.patch.yaml
+- bookstack-url.patch.yaml
 
 # workflow remplacera par ACR_LOGIN_SERVER + sha-<commit>
 images:
-  - name: bookstack
-    newName: lscr.io/linuxserver/bookstack
-    newTag: version-v25.12.2
+- name: bookstack
+  newName: idariusrncpacr6ykn7.azurecr.io/bookstack
+  newTag: sha-51397deb2abf270a76b51ce13652c99a0133b653
