@@ -29,7 +29,6 @@ jobs:
         uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optionnel : verrouille la version de gitleaks utilisée par l’action
           GITLEAKS_VERSION: "8.30.0"
 
   build-push-and-update-dev:
@@ -73,18 +72,46 @@ jobs:
             --build-arg BOOKSTACK_VERSION="${BOOKSTACK_VERSION}" \
             app
 
-      - name: Trivy scan image (block on CRITICAL)
+      # 1) Rapport lisible dans les logs + artifact (CRITICAL only, bloque)
+      - name: Trivy scan image (CRITICAL only) - log + artifact
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${GITHUB_SHA}"
+
+          # Installer Trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin v0.65.0
+          trivy --version
+
+          # Scan CRITICAL uniquement, vuln uniquement (plus rapide, et tu as déjà gitleaks)
+          # --exit-code 1 => bloque la pipeline si CRITICAL trouvé
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --format table \
+            "${IMAGE}" | tee trivy-report.txt
+
+      - name: Upload Trivy report (txt)
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+          retention-days: 14
+
+      # 2) SARIF pour l’onglet Security (même règle CRITICAL + bloque)
+      - name: Trivy scan image (CRITICAL only) - SARIF
         uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: image
           image-ref: "${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${{ github.sha }}"
+          scanners: "vuln"
           severity: "CRITICAL"
           exit-code: "1"
+          ignore-unfixed: true
           format: "sarif"
           output: "trivy-results.sarif"
-          # Optionnel mais pratique : ignore les CVE “unfixed” dans l’image de base
-          # (si tu veux être ultra strict, mets false ou supprime la ligne)
-          ignore-unfixed: true
 
       - name: Upload Trivy results to GitHub Security tab (SARIF)
         uses: github/codeql-action/upload-sarif@v3
