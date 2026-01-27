@@ -1,3 +1,11 @@
+# =============================================================================
+# Reset to linuxserver fallback image
+#
+# Réinitialise les overlays Kustomize à la version fallback de linuxserver.
+# Utile pour revenir à une configuration connue et stable lors du prochain bootstrap
+# dev, prod, ou les deux.
+# =============================================================================
+
 name: Reset to fallback (linuxserver)
 
 on:
@@ -22,12 +30,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Si prod, checkout branche 'prod' sinon 'main'
           ref: ${{ inputs.environment == 'prod' && 'prod' || 'main' }}
           fetch-depth: 0
 
       - name: Install kustomize
         run: |
           set -e
+          # Version kustomize utilisée pour reset
           KUSTOMIZE_VERSION="5.4.2"
           curl -fsSL -o /tmp/kustomize.tgz \
             "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
@@ -39,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           cd k8s/overlays/dev
+          # Version linuxserver fallback
           kustomize edit set image bookstack="lscr.io/linuxserver/bookstack:version-v25.12.2"
 
       - name: Reset prod overlay
@@ -46,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           cd k8s/overlays/prod
+          # Version linuxserver fallback
           kustomize edit set image bookstack="lscr.io/linuxserver/bookstack:version-v25.12.2"
 
       - name: Commit & push to main
@@ -55,6 +67,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add k8s/overlays/dev/kustomization.yaml
+          # Ajoute prod aussi si reset demandé pour les deux
           if [[ "${{ inputs.environment }}" == "both" ]]; then
             git add k8s/overlays/prod/kustomization.yaml
           fi
@@ -65,4 +78,5 @@ jobs:
         if: ${{ inputs.environment == 'prod' || inputs.environment == 'both' }}
         run: |
           set -e
+          # Push les changements prod vers la branche prod
           git push origin HEAD:prod

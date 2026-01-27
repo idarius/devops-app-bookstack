@@ -10,7 +10,7 @@ spec:
     # Autorise le trafic depuis le même namespace
     - from:
         - podSelector: {}
-    # Autorise Traefik (ingress controller)
+    # Autorise Traefik
     - from:
         - namespaceSelector:
             matchLabels:

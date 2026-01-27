@@ -12,7 +12,7 @@ resources:
 patchesStrategicMerge:
 - bookstack-url.patch.yaml
 
-# workflow remplacera par ACR_LOGIN_SERVER + sha-<commit>
+# le workflow github remplacera par ACR_LOGIN_SERVER + sha-<commit>
 images:
 - name: bookstack
   newName: idariusrncpacr6ykn7.azurecr.io/bookstack

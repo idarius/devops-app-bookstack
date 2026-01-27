@@ -1,4 +1,4 @@
-/* RNCP demo branding: remplace le texte "BookStack" du header */
+/* remplace le texte "BookStack" du header */
 .logo-text {
   font-size: 0 !important; /* cache le texte original */
 }
@@ -11,7 +11,7 @@
   font-weight: 400;
 }
 
-/* Optionnel: badge DEV */
+/* badge devant le texte */
 .logo-text::before {
   content: "NjC";
   font-size: 20px;

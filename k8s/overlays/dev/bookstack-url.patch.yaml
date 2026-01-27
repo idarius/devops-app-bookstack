@@ -1,3 +1,4 @@
+# Patch Kustomize pour l'URL publique de Bookstack en dev
 apiVersion: apps/v1
 kind: Deployment
 metadata:

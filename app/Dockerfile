@@ -5,15 +5,13 @@ FROM lscr.io/linuxserver/bookstack:version-v${BOOKSTACK_VERSION}
 ARG BUILD_SHA=dev
 LABEL org.opencontainers.image.revision=$BUILD_SHA
 
-# Trace build (utile pour debug)
+# Trace build si besoin de debug
 RUN echo "${BUILD_SHA}" > /build_sha.txt
 
-# 1) Ajoute la CSS dans le "public" BookStack (servi par l'app)
+# Ajoute la CSS dans le dossier public de BookStack
 COPY src/rncp.css /app/www/public/rncp.css
 
-# 2) Injecte <link rel="stylesheet" href="/rncp.css"> dans un layout Blade
-# On cherche un fichier dans resources/views/layouts qui contient </head>
-# et on patch si pas déjà patché.
+# Injecte le CSS dans un layout Blade si pas déjà présent
 RUN set -e; \
   TARGET="$(grep -Rsl "</head>" /app/www/resources/views/layouts 2>/dev/null | head -n 1 || true)"; \
   if [ -n "$TARGET" ]; then \
@@ -23,5 +21,5 @@ RUN set -e; \
     echo "No layout found under /app/www/resources/views/layouts containing </head> (skip)"; \
   fi
 
-# 3) Clear view cache
+# Vider le cache des vues
 RUN php /app/www/artisan view:clear || true

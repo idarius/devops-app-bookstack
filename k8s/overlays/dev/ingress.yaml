@@ -1,3 +1,4 @@
+# Ingress pour Bookstack dev avec TLS Let's Encrypt staging
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

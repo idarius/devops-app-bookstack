@@ -1,3 +1,10 @@
+# =============================================================================
+# Promote to prod
+#
+# Promote une image (tag) vers l'environnement prod.
+# Met à jour l'overlay prod avec le tag spécifié et pousse vers la branche prod.
+# =============================================================================
+
 name: Promote to prod (branch prod)
 
 on:
@@ -32,6 +39,7 @@ jobs:
       - name: Validate tag format
         run: |
           set -euo pipefail
+          # Format attendu: sha-<commit>
           case "${{ inputs.image_tag }}" in
             sha-*) echo "OK";;
             *) echo "image_tag must start with sha- (ex: sha-<commit>)"; exit 1;;
@@ -40,6 +48,7 @@ jobs:
       - name: Install kustomize
         run: |
           set -e
+          # Version kustomize utilisée pour promote
           KUSTOMIZE_VERSION="5.4.2"
           curl -fsSL -o /tmp/kustomize.tgz \
             "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
@@ -52,6 +61,7 @@ jobs:
           set -euo pipefail
           IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack"
           cd k8s/overlays/prod
+          # Met à jour l'overlay prod avec le tag spécifié
           kustomize edit set image bookstack="${IMAGE}:${{ inputs.image_tag }}"
 
       - name: Commit changes
@@ -65,5 +75,6 @@ jobs:
       - name: Push to prod branch
         run: |
           set -euo pipefail
+          # Branche cible par défaut: prod
           PROD_BRANCH="${{ inputs.prod_branch }}"
           git push origin HEAD:"$PROD_BRANCH"

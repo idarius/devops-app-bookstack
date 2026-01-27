@@ -44,7 +44,7 @@ spec:
             - name: TZ
               value: "Europe/Paris"
 
-            # Sera patché par overlay dev/prod
+            # Sera patché avec overlay dev/prod
             - name: APP_URL
               value: "https://CHANGE_ME"
 
@@ -90,6 +90,7 @@ spec:
                   name: bookstack-secrets
                   key: DB_PASSWORD
 
+            # Load balancer: utilise X-Forwarded-For pour connaître la vraie IP du client
             - name: TRUSTED_PROXIES
               value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1"
               
@@ -119,6 +120,7 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 10
 
+          # crée l'utilisateur admin initial en utilisant les secrets (une seule fois)
           lifecycle:
             postStart:
               exec:

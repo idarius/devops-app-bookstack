@@ -1,2 +1,23 @@
-.DS_Store
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+*.tfvars
+**/crash.log
+**/crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+tfplan
+tfplan*
+
+# Secrets / env
 .env
+*.pem
+*.key
+kubeconfig
+**/kubeconfig
+
+# OS / divers
+.DS_Store

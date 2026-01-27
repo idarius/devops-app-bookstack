@@ -1,3 +1,12 @@
+# =============================================================================
+# Build & Deploy (dev -> ACR)
+#
+# Pipeline CI pour la branche main. Build et déploie l'image Docker vers ACR.
+# Scans de sécurité: gitleaks (secrets) + Trivy (vulnérabilités).
+# Mise à jour GitOps de l'overlay dev après validation.
+# Déclenché sur push/changements dans app/ sur main.
+# =============================================================================
+
 name: Build & Deploy (dev -> ACR)
 
 on:
@@ -16,6 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Scan de secrets: bloque le build si des secrets sont détectés
   gitleaks:
     name: Secrets scan (gitleaks)
     runs-on: ubuntu-latest
@@ -31,6 +41,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_VERSION: "8.30.0"
 
+  # Job principal: build, scan, push, GitOps update
+  # Ne s'exécute que si gitleaks OK
   build-push-and-update-dev:
     name: Build, scan, push & GitOps commit (dev)
     needs: [gitleaks]
@@ -58,6 +70,7 @@ jobs:
           set -euo pipefail
           az acr login --name "${{ vars.ACR_NAME }}"
 
+      # Build et tagging: sha-<commit>
       - name: Build image (local)
         run: |
           set -euo pipefail
@@ -72,7 +85,8 @@ jobs:
             --build-arg BOOKSTACK_VERSION="${BOOKSTACK_VERSION}" \
             app
 
-      # 1) Rapport lisible dans les logs + artifact (CRITICAL only, bloque)
+      # Scan Trivy: 2 formats pour traçabilité
+      # Rapport texte dans logs + artifact
       - name: Trivy scan image (CRITICAL only) - log + artifact
         run: |
           set -euo pipefail
@@ -99,7 +113,7 @@ jobs:
           path: trivy-report.txt
           retention-days: 14
 
-      # 2) SARIF pour l’onglet Security (même règle CRITICAL + bloque)
+      # 2) Format SARIF pour l'onglet Security de GitHub
       - name: Trivy scan image (CRITICAL only) - SARIF
         uses: aquasecurity/trivy-action@0.33.1
         with:
@@ -125,9 +139,11 @@ jobs:
           echo "Pushing ${IMAGE}:${TAG}"
           docker push "${IMAGE}:${TAG}"
 
+      # GitOps: mise à jour de l'overlay dev
       - name: Install kustomize
         run: |
           set -euo pipefail
+          # Version kustomize utilisée pour GitOps
           KUSTOMIZE_VERSION="5.4.2"
           curl -fsSL -o /tmp/kustomize.tgz \
             "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
@@ -152,6 +168,7 @@ jobs:
           git add k8s/overlays/dev/kustomization.yaml
           git commit -m "chore(dev): deploy sha-${GITHUB_SHA}" || exit 0
 
+          # Rebase pour éviter les merge commits
           git fetch origin main
           git rebase origin/main
 
