@@ -93,7 +93,10 @@ jobs:
           set -euo pipefail
           IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${GITHUB_SHA}"
           echo "Checking OpenSSL packages in ${IMAGE}"
-          docker run --rm "${IMAGE}" sh -lc 'apk info -v openssl libssl3 libcrypto3'
+
+    docker run --rm \
+      --entrypoint /bin/sh \
+      "${IMAGE}" -lc 'apk info -v openssl libssl3 libcrypto3'
 
       - name: Install Trivy
         env:
