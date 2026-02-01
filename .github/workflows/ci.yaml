@@ -1,3 +1,11 @@
+# =============================================================================
+# Build & Deploy (dev -> ACR)
+# - Build image Docker (BookStack) + patch CSS
+# - Security scans: gitleaks + trivy (CRITICAL)
+# - Push ACR si scan OK
+# - GitOps: update overlay dev (kustomize edit set image)
+# =============================================================================
+
 name: Build & Deploy (dev -> ACR)
 
 on:
@@ -5,22 +13,45 @@ on:
     branches: ["main"]
     paths:
       - "app/**"
+      - "src/**"
+      - "k8s/**"
+      - ".github/workflows/ci.yaml"
 
 permissions:
   id-token: write
   contents: write
+  security-events: write
 
 concurrency:
   group: build-deploy-dev-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  gitleaks:
+    name: Secrets scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks (fail on findings)
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.30.0"
+
   build-push-and-update-dev:
+    name: Build, scan, push & GitOps commit (dev)
+    needs: [gitleaks]
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
+    # Aligne CI et Dockerfile
     env:
-      BOOKSTACK_VERSION: "25.12.2"
+      BOOKSTACK_VERSION: "25.12.3"
+      TRIVY_VERSION: "0.69.0"
 
     steps:
       - name: Checkout
@@ -40,20 +71,89 @@ jobs:
           set -euo pipefail
           az acr login --name "${{ vars.ACR_NAME }}"
 
-      - name: Build & push image
+      - name: Build image (local) - no cache
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack"
+          TAG="sha-${GITHUB_SHA}"
+          echo "Building ${IMAGE}:${TAG}"
+
+          # build depuis la racine (pour que COPY src/... fonctionne)
+          docker build \
+            --pull \
+            --no-cache \
+            -f app/Dockerfile \
+            -t "${IMAGE}:${TAG}" \
+            --build-arg BUILD_SHA="${TAG}" \
+            --build-arg BOOKSTACK_VERSION="${BOOKSTACK_VERSION}" \
+            .
+
+      - name: Verify OpenSSL versions inside image (debug)
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${GITHUB_SHA}"
+          echo "Checking OpenSSL packages in ${IMAGE}"
+
+          docker run --rm \
+            --entrypoint /bin/sh \
+            "${IMAGE}" -lc 'apk info -v openssl libssl3 libcrypto3'
+
+      - name: Install Trivy
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        run: |
+          set -euo pipefail
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin "v${TRIVY_VERSION}"
+          trivy --version
+
+      - name: Trivy scan image (CRITICAL) - table report
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${GITHUB_SHA}"
+
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --format table \
+            "${IMAGE}" | tee trivy-report.txt
+
+      - name: Upload Trivy report (txt)
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.txt
+          retention-days: 14
+
+      - name: Trivy scan image (CRITICAL) - SARIF (same Trivy)
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${GITHUB_SHA}"
+
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL \
+            --exit-code 0 \
+            --format sarif \
+            -o trivy-results.sarif \
+            "${IMAGE}"
+
+      - name: Upload Trivy results to GitHub Security tab (SARIF)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Push image (only if scan passed)
         run: |
           set -euo pipefail
           IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack"
           TAG="sha-${GITHUB_SHA}"
           echo "Pushing ${IMAGE}:${TAG}"
-
-          docker build \
-            -f app/Dockerfile \
-            -t "${IMAGE}:${TAG}" \
-            --build-arg BUILD_SHA="${TAG}" \
-            --build-arg BOOKSTACK_VERSION="${BOOKSTACK_VERSION}" \
-            app
-
           docker push "${IMAGE}:${TAG}"
 
       - name: Install kustomize

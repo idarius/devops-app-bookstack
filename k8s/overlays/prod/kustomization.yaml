@@ -6,11 +6,13 @@ namespace: bookstack-prod
 resources:
 - ../../base
 - ingress.yaml
+- resourcequota.yaml
+- networkpolicy.yaml
 
 patchesStrategicMerge:
 - bookstack-url.patch.yaml
 
-# workflow remplacera par ACR_LOGIN_SERVER + sha-<commit>
+# le workflow github remplacera par ACR_LOGIN_SERVER + sha-<commit>
 images:
 - name: bookstack
   newName: lscr.io/linuxserver/bookstack
