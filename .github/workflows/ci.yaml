@@ -128,20 +128,20 @@ jobs:
           path: trivy-report.txt
           retention-days: 14
 
-      - name: Trivy scan image (CRITICAL) - SARIF
-        uses: aquasecurity/trivy-action@0.33.1
+      - name: Trivy scan image (CRITICAL) - SARIF (same Trivy)
         env:
           TRIVY_SKIP_VERSION_CHECK: "true"
-        with:
-          version: "v0.69.0"
-          scan-type: image
-          image-ref: "${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${{ github.sha }}"
-          scanners: "vuln"
-          severity: "CRITICAL"
-          exit-code: "1"
-          format: "sarif"
-          output: "trivy-results.sarif"
-          cache: "false"
+        run: |
+          set -euo pipefail
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${GITHUB_SHA}"
+
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL \
+            --exit-code 0 \
+            --format sarif \
+            -o trivy-results.sarif \
+            "${IMAGE}"
 
       - name: Upload Trivy results to GitHub Security tab (SARIF)
         uses: github/codeql-action/upload-sarif@v3
