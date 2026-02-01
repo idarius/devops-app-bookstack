@@ -16,4 +16,4 @@ patchesStrategicMerge:
 images:
 - name: bookstack
   newName: idariusrncpacryvisr.azurecr.io/bookstack
-  newTag: sha-bc96f0cdf867ae508b1d6bf4971bdb0b17c39cfc
+  newTag: sha-d095cff625070a158ca66555cb3056797c5e5c19
