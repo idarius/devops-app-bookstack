@@ -1,5 +1,5 @@
 # Pin version linuxserver BookStack
-ARG BOOKSTACK_VERSION=25.12.2
+ARG BOOKSTACK_VERSION=25.12.3
 FROM lscr.io/linuxserver/bookstack:version-v${BOOKSTACK_VERSION}
 
 ARG BUILD_SHA=dev
