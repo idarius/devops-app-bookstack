@@ -133,7 +133,7 @@ jobs:
         env:
           TRIVY_SKIP_VERSION_CHECK: "true"
         with:
-          version: "0.69.0"
+          version: "v0.69.0"
           scan-type: image
           image-ref: "${{ vars.ACR_LOGIN_SERVER }}/bookstack:sha-${{ github.sha }}"
           scanners: "vuln"
