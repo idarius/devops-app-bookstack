@@ -24,17 +24,28 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: reset-fallback-${{ inputs.environment }}
+  cancel-in-progress: true
+
 jobs:
   reset:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # =========================================================================
+      # DEV (branche main)
+      # =========================================================================
+
+      - name: Checkout main (dev reset)
+        if: ${{ inputs.environment == 'dev' || inputs.environment == 'both' }}
+        uses: actions/checkout@v4
         with:
-          # Si prod, checkout branche 'prod' sinon 'main'
-          ref: ${{ inputs.environment == 'prod' && 'prod' || 'main' }}
+          # DEV vit sur main
+          ref: main
           fetch-depth: 0
 
-      - name: Install kustomize
+      - name: Install kustomize (dev reset)
+        if: ${{ inputs.environment == 'dev' || inputs.environment == 'both' }}
         run: |
           set -e
           # Version kustomize utilisée pour reset
@@ -52,6 +63,49 @@ jobs:
           # Version linuxserver fallback
           kustomize edit set image bookstack="lscr.io/linuxserver/bookstack:version-v25.12.2"
 
+      - name: Commit & push dev changes to main
+        if: ${{ inputs.environment == 'dev' || inputs.environment == 'both' }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add k8s/overlays/dev/kustomization.yaml
+          git commit -m "chore(dev): reset to linuxserver fallback" || exit 0
+
+          # Toujours rebase sur main distant pour éviter non-fast-forward
+          git fetch origin main
+          git rebase origin/main
+
+          git push origin HEAD:main
+
+      # =========================================================================
+      # PROD (branche prod)
+      # NOTE: on fait un checkout séparé pour éviter de pousser prod depuis main,
+      # ce qui provoque des non-fast-forward dès que prod diverge de main.
+      # =========================================================================
+
+      - name: Checkout prod (prod reset)
+        if: ${{ inputs.environment == 'prod' || inputs.environment == 'both' }}
+        uses: actions/checkout@v4
+        with:
+          # PROD vit sur prod
+          ref: prod
+          fetch-depth: 0
+          # Important: forcer un checkout propre du workspace (sinon mélange de branches)
+          clean: true
+
+      - name: Install kustomize (prod reset)
+        if: ${{ inputs.environment == 'prod' || inputs.environment == 'both' }}
+        run: |
+          set -e
+          # Version kustomize utilisée pour reset
+          KUSTOMIZE_VERSION="5.4.2"
+          curl -fsSL -o /tmp/kustomize.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tgz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
+
       - name: Reset prod overlay
         if: ${{ inputs.environment == 'prod' || inputs.environment == 'both' }}
         run: |
@@ -60,23 +114,18 @@ jobs:
           # Version linuxserver fallback
           kustomize edit set image bookstack="lscr.io/linuxserver/bookstack:version-v25.12.2"
 
-      - name: Commit & push to main
-        if: ${{ inputs.environment == 'dev' || inputs.environment == 'both' }}
-        run: |
-          set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/overlays/dev/kustomization.yaml
-          # Ajoute prod aussi si reset demandé pour les deux
-          if [[ "${{ inputs.environment }}" == "both" ]]; then
-            git add k8s/overlays/prod/kustomization.yaml
-          fi
-          git commit -m "chore: reset ${{ inputs.environment }} to linuxserver fallback" || exit 0
-          git push origin main
-
-      - name: Push prod changes to prod branch
+      - name: Commit & push prod changes to prod
         if: ${{ inputs.environment == 'prod' || inputs.environment == 'both' }}
         run: |
-          set -e
-          # Push les changements prod vers la branche prod
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add k8s/overlays/prod/kustomization.yaml
+          git commit -m "chore(prod): reset to linuxserver fallback" || exit 0
+
+          # Toujours rebase sur prod distant pour éviter non-fast-forward
+          git fetch origin prod
+          git rebase origin/prod
+
           git push origin HEAD:prod
