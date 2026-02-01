@@ -12,7 +12,7 @@ LABEL org.opencontainers.image.revision=$BUILD_SHA
 RUN echo "${BUILD_SHA}" > /build_sha.txt
 
 # Ajoute la CSS dans le dossier public de BookStack
-COPY src/rncp.css /app/www/public/rncp.css
+COPY app/src/rncp.css /app/www/public/rncp.css
 
 # Injecte le CSS dans un layout Blade si pas déjà présent
 RUN set -e; \
