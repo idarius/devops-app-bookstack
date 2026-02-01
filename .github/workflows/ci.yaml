@@ -94,7 +94,7 @@ jobs:
 
           # Installer Trivy
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sudo sh -s -- -b /usr/local/bin v0.65.0
+            | sudo sh -s -- -b /usr/local/bin v0.69.0
           trivy --version
 
           # Scan CRITICAL uniquement, vuln uniquement (plus rapide, et tu as déjà gitleaks)
