@@ -4,7 +4,7 @@
 }
 
 .logo-text::after {
-  content: "RNCP";
+  content: "RNCP TEST";
   font-size: 1.8rem;
   line-height: 1.4;
   color: #fff;

@@ -5,6 +5,7 @@ FROM lscr.io/linuxserver/bookstack:version-v${BOOKSTACK_VERSION}
 # applique les correctifs Alpine (openssl/libssl/libcrypto)
 RUN apk update && apk upgrade --no-cache
 
+# SHA du commit pour traçabilité
 ARG BUILD_SHA=dev
 LABEL org.opencontainers.image.revision=$BUILD_SHA
 

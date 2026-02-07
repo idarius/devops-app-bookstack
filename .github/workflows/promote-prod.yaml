@@ -69,7 +69,7 @@ jobs:
           git add k8s/overlays/prod/kustomization.yaml
           git commit -m "chore(prod): promote ${{ inputs.image_tag }}" || exit 0
 
-      - name: Push to prod branch (fast-forward)
+      - name: Push to prod branch
         run: |
           set -euo pipefail
           PROD_BRANCH="${{ inputs.prod_branch }}"
