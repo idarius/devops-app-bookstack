@@ -15,5 +15,5 @@ patchesStrategicMerge:
 # le workflow github remplacera par ACR_LOGIN_SERVER + sha-<commit>
 images:
 - name: bookstack
-  newName: lscr.io/linuxserver/bookstack
-  newTag: version-v25.12.2
+  newName: idariusrncpacrs3iyx.azurecr.io/bookstack
+  newTag: sha-6da5ed9e7593cd7610fbf350b96bcee584bde543
